@@ -1,4 +1,4 @@
-G.A.I.N Agent 0.4.45 hosted download files
+G.A.I.N Agent 0.4.46 hosted download files
 
 Upload these files to:
   https://www.cyberwardion.com/downloads/gain-agent/
@@ -9,14 +9,13 @@ Files:
   latest.json
   SHA256SUMS.txt
 
-GitHub Release assets for gain-agent-v0.4.45:
-  gain-agent-0.4.45.tgz
-  gain-agent-0.4.45-win-x64.exe
-  gain-agent-0.4.45-macos-x64
-  gain-agent-0.4.45-macos-arm64
-  gain-agent-0.4.45-linux-x64
-  gain-agent-0.4.45-linux-arm64
-  GAIN-Agent-0.4.45-Setup.msi
+GitHub Release assets for gain-agent-v0.4.46:
+  gain-agent-0.4.46.tgz
+  gain-agent-0.4.46-win-x64.exe
+  gain-agent-0.4.46-macos-x64
+  gain-agent-0.4.46-macos-arm64
+  gain-agent-0.4.46-linux-x64
+  gain-agent-0.4.46-linux-arm64
 
 Dashboard install commands:
 
@@ -36,7 +35,7 @@ Installer behavior:
 
 If no standalone binary exists for the platform, the installers fall back to the
 GitHub Release tarball:
-  npm install -g https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.45/gain-agent-0.4.45.tgz
+  npm install -g https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.46/gain-agent-0.4.46.tgz
 
 The fallback tarball is hosted at the package URL in latest.json.
 

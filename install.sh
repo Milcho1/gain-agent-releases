@@ -9,6 +9,8 @@ DEPLOYMENT_MODE="${GAIN_DEPLOYMENT_MODE:-}"
 LABEL="${GAIN_DEVICE_LABEL:-Developer workstation}"
 DEPARTMENT="${GAIN_DEPARTMENT:-}"
 NO_SERVICE="${GAIN_AGENT_NO_SERVICE:-}"
+PROXY_FAIL_POLICY="${GAIN_PROXY_FAIL_POLICY:-fail_open}"
+if [ "$PROXY_FAIL_POLICY" != "fail_closed" ]; then PROXY_FAIL_POLICY="fail_open"; fi
 
 for arg in "$@"; do
   case "$arg" in
@@ -112,16 +114,6 @@ ensure_path() {
   esac
 }
 
-set_current_proxy_env() {
-  PROXY_HOST="${GAIN_PROXY_HOST:-127.0.0.1}"
-  PROXY_PORT="${GAIN_PROXY_PORT:-8787}"
-  PROXY_URL="http://${PROXY_HOST}:${PROXY_PORT}"
-  export ANTHROPIC_BASE_URL="$PROXY_URL"
-  export OPENAI_BASE_URL="$PROXY_URL"
-  export OPENAI_API_BASE="$PROXY_URL"
-  export COPILOT_PROVIDER_BASE_URL="$PROXY_URL"
-}
-
 install_proxy_service() {
   agent_cmd="$1"
   if [ "$NO_SERVICE" = "1" ] || [ "$NO_SERVICE" = "true" ]; then
@@ -130,10 +122,10 @@ install_proxy_service() {
   fi
   PROXY_HOST="${GAIN_PROXY_HOST:-127.0.0.1}"
   PROXY_PORT="${GAIN_PROXY_PORT:-8787}"
-  if "$agent_cmd" proxy --service install --host "$PROXY_HOST" --port "$PROXY_PORT"; then
-    set_current_proxy_env
+  if "$agent_cmd" proxy --service install --host "$PROXY_HOST" --port "$PROXY_PORT" --proxy-fail-policy "$PROXY_FAIL_POLICY"; then
+    echo "Local proxy installed in $PROXY_FAIL_POLICY mode."
   else
-    echo "Proxy service install warning. Run 'gain-agent proxy --service install' later to enable seamless local proxy routing." >&2
+    echo "Proxy service install warning. The agent remains connected and AI clients keep their direct connection." >&2
   fi
 }
 
@@ -150,11 +142,11 @@ auto_wire() {
     echo "Wire tools later with: gain-agent integrations --apply"
     return 0
   fi
-  if [ "$NO_SERVICE" != "1" ] && [ "$NO_SERVICE" != "true" ] && local_proxy_reachable; then
+  if [ "$PROXY_FAIL_POLICY" = "fail_closed" ] && [ "$NO_SERVICE" != "1" ] && [ "$NO_SERVICE" != "true" ] && local_proxy_reachable; then
     echo "Auto-wiring detected coding tools (local proxy is running)..."
     "$agent_cmd" integrations --apply || echo "Auto-wiring warning. Wire tools later with: gain-agent integrations --apply" >&2
   else
-    echo "Auto-wiring detected coding tools (without proxy routing: local proxy not reachable)..."
+    echo "Auto-wiring detected coding tools without proxy routing (fail-open default or local proxy not reachable)..."
     "$agent_cmd" integrations --apply --no-proxy-env || echo "Auto-wiring warning. Wire tools later with: gain-agent integrations --apply" >&2
   fi
   echo "Restart open terminals and coding tools so hooks and environment changes take effect."
@@ -169,6 +161,7 @@ run_setup() {
     if [ -n "$DEPARTMENT" ]; then setup_args+=(--department "$DEPARTMENT"); fi
     if [ -n "${GAIN_SIEM_WEBHOOK_URL:-}" ]; then setup_args+=(--siem-webhook-url "$GAIN_SIEM_WEBHOOK_URL"); fi
     if [ -n "${GAIN_SIEM_BEARER_TOKEN:-}" ]; then setup_args+=(--siem-token "$GAIN_SIEM_BEARER_TOKEN"); fi
+    setup_args+=(--proxy-fail-policy "$PROXY_FAIL_POLICY")
     "$agent_cmd" "${setup_args[@]}"
     if [ "${GAIN_AGENT_SKIP_HEALTH_SCHEDULE:-}" != "1" ]; then
       "$agent_cmd" install-health-schedule
@@ -191,7 +184,7 @@ install_binary() {
   key="$(platform_key)"
   manifest="$(latest_json)"
   version="${GAIN_AGENT_VERSION:-$(json_version "$manifest")}"
-  if [ -z "$version" ]; then version="0.4.31"; fi
+  if [ -z "$version" ]; then version="0.4.46"; fi
 
   binary_name="gain-agent-$version-$key"
   binary_url_value="$(json_binary_field "$manifest" "$key" "url")"
@@ -227,7 +220,7 @@ install_npm_fallback() {
   fi
   manifest="$(latest_json)"
   version="${GAIN_AGENT_VERSION:-$(json_version "$manifest")}"
-  if [ -z "$version" ]; then version="0.4.31"; fi
+  if [ -z "$version" ]; then version="0.4.46"; fi
   package_ref="$(json_package "$manifest")"
   if [ -z "$package_ref" ]; then package_ref="gain-agent-$version.tgz"; fi
   package_name="$(basename "$package_ref")"

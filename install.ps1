@@ -12,11 +12,15 @@ $OrgKey = $env:GAIN_ORG_API_KEY
 $Mode = $env:GAIN_ENFORCEMENT_MODE
 if (-not $Mode) { $Mode = "visibility_only" }
 $DeploymentMode = $env:GAIN_DEPLOYMENT_MODE
+$SupabaseUrl = $env:GAIN_SUPABASE_URL
+$SupabaseKey = $env:GAIN_SUPABASE_KEY
 $Label = $env:GAIN_DEVICE_LABEL
 if (-not $Label) { $Label = "Developer workstation" }
 $Department = $env:GAIN_DEPARTMENT
 $SkipService = $NoService -or $env:GAIN_AGENT_NO_SERVICE -eq "1" -or $env:GAIN_AGENT_NO_SERVICE -eq "true"
 $SkipAutoWire = $env:GAIN_AGENT_SKIP_INTEGRATIONS -eq "1" -or $env:GAIN_AGENT_NO_AUTOWIRE -eq "1" -or $env:GAIN_AGENT_NO_AUTOWIRE -eq "true"
+$SkipUserPath = $env:GAIN_AGENT_SKIP_USER_PATH -eq "1"
+$ProxyFailPolicy = if ($env:GAIN_PROXY_FAIL_POLICY -eq "fail_closed") { "fail_closed" } else { "fail_open" }
 
 function Resolve-GainUrl([string]$UrlOrPath) {
   if ($UrlOrPath -match "^https?://") { return $UrlOrPath }
@@ -40,6 +44,11 @@ function Get-PlatformKey {
 }
 
 function Add-ToUserPath([string]$Dir) {
+  if ($SkipUserPath) {
+    $env:Path = "$Dir;$env:Path"
+    Write-Host "Skipped persistent user PATH update because GAIN_AGENT_SKIP_USER_PATH=1 was set."
+    return
+  }
   $currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
   $parts = @()
   if ($currentUserPath) { $parts = $currentUserPath -split ";" | Where-Object { $_ } }
@@ -53,15 +62,6 @@ function Add-ToUserPath([string]$Dir) {
   }
 }
 
-function Set-CurrentProxyEnv {
-  $ProxyHost = if ($env:GAIN_PROXY_HOST) { $env:GAIN_PROXY_HOST } else { "127.0.0.1" }
-  $ProxyPort = if ($env:GAIN_PROXY_PORT) { $env:GAIN_PROXY_PORT } else { "8787" }
-  $ProxyUrl = "http://${ProxyHost}:$ProxyPort"
-  foreach ($Name in @("ANTHROPIC_BASE_URL", "OPENAI_BASE_URL", "OPENAI_API_BASE", "COPILOT_PROVIDER_BASE_URL")) {
-    Set-Item -Path "Env:$Name" -Value $ProxyUrl
-  }
-}
-
 function Install-ProxyService([string]$AgentPath) {
   if ($SkipService) {
     Write-Host "Skipped hidden proxy service install because --no-service or GAIN_AGENT_NO_SERVICE was set."
@@ -70,11 +70,10 @@ function Install-ProxyService([string]$AgentPath) {
   $ProxyHost = if ($env:GAIN_PROXY_HOST) { $env:GAIN_PROXY_HOST } else { "127.0.0.1" }
   $ProxyPort = if ($env:GAIN_PROXY_PORT) { $env:GAIN_PROXY_PORT } else { "8787" }
   try {
-    & $AgentPath proxy --service install --host $ProxyHost --port $ProxyPort
-    Set-CurrentProxyEnv
+    & $AgentPath proxy --service install --host $ProxyHost --port $ProxyPort --proxy-fail-policy $ProxyFailPolicy
   } catch {
     Write-Host "Proxy service install warning: $($_.Exception.Message)"
-    Write-Host "Run 'gain-agent proxy --service install' later to enable seamless local proxy routing."
+    Write-Host "The agent remains connected and your AI tools keep their direct connection. Run 'gain-agent proxy --service install' later if you need it."
   }
 }
 
@@ -92,21 +91,28 @@ function Test-LocalProxyReachable {
   }
 }
 
+function Invoke-AgentCommand([string]$AgentPath, [string[]]$Arguments, [string]$Description, [string]$Fix) {
+  & $AgentPath @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "$Description failed with exit code $LASTEXITCODE. Fix: $Fix"
+  }
+}
+
 function Invoke-AutoWire([string]$AgentPath) {
   if ($SkipAutoWire) {
     Write-Host "Skipped coding-tool auto-wiring because GAIN_AGENT_SKIP_INTEGRATIONS or GAIN_AGENT_NO_AUTOWIRE was set."
     Write-Host "Wire tools later with: gain-agent integrations --apply"
     return
   }
-  $proxyUp = (-not $SkipService) -and (Test-LocalProxyReachable)
+  $proxyUp = $ProxyFailPolicy -eq "fail_closed" -and (-not $SkipService) -and (Test-LocalProxyReachable)
   try {
     if ($proxyUp) {
       Write-Host "Auto-wiring detected coding tools (local proxy is running)..."
-      & $AgentPath integrations --apply
+      Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("integrations", "--apply") -Description "Coding-tool auto-wiring" -Fix "Run gain-agent integrations --apply after resolving the message above."
     } else {
-      Write-Host "Auto-wiring detected coding tools (without proxy routing: local proxy not reachable)..."
-      & $AgentPath integrations --apply --no-proxy-env
-      Write-Host "Enable proxy redaction later with: gain-agent proxy --service install; gain-agent integrations --apply"
+      Write-Host "Auto-wiring detected coding tools without proxy routing (fail-open default or local proxy not reachable)..."
+      Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("integrations", "--apply", "--no-proxy-env") -Description "Coding-tool auto-wiring" -Fix "Run gain-agent integrations --apply --no-proxy-env after resolving the message above."
+      Write-Host "To deliberately enable fail-closed proxy routing later: set GAIN_PROXY_FAIL_POLICY=fail_closed, then run gain-agent proxy --service install and gain-agent integrations --apply."
     }
     Write-Host "Restart open terminals and coding tools so hooks and environment changes take effect."
   } catch {
@@ -118,21 +124,24 @@ function Invoke-AutoWire([string]$AgentPath) {
 function Invoke-AgentSetup([string]$AgentPath) {
   if ($OrgKey) {
     $setupArgs = @("setup", "--org-key", $OrgKey, "--mode", $Mode, "--label", $Label)
+    $setupArgs += @("--proxy-fail-policy", $ProxyFailPolicy)
     if ($DeploymentMode) { $setupArgs += @("--deployment-mode", $DeploymentMode) }
+    if ($SupabaseUrl) { $setupArgs += @("--supabase-url", $SupabaseUrl) }
+    if ($SupabaseKey) { $setupArgs += @("--supabase-key", $SupabaseKey) }
     if ($env:GAIN_TELEMETRY_ENABLED -eq "false" -or $env:GAIN_NO_TELEMETRY -eq "1") { $setupArgs += @("--no-telemetry") }
     if ($Department) { $setupArgs += @("--department", $Department) }
     if ($env:GAIN_SIEM_WEBHOOK_URL) { $setupArgs += @("--siem-webhook-url", $env:GAIN_SIEM_WEBHOOK_URL) }
     if ($env:GAIN_SIEM_BEARER_TOKEN) { $setupArgs += @("--siem-token", $env:GAIN_SIEM_BEARER_TOKEN) }
-    & $AgentPath @setupArgs
+    Invoke-AgentCommand -AgentPath $AgentPath -Arguments $setupArgs -Description "Agent setup" -Fix "Check the Organization Key and network connection, then rerun this installer."
     if ($env:GAIN_AGENT_SKIP_HEALTH_SCHEDULE -ne "1") {
-      & $AgentPath install-health-schedule
+      Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("install-health-schedule") -Description "Health schedule installation" -Fix "Run gain-agent install-health-schedule from an elevated PowerShell, then rerun gain-agent doctor."
     }
     if ($env:GAIN_AGENT_AUTO_UPDATE -ne "false" -and $env:GAIN_AGENT_AUTO_UPDATE -ne "0") {
-      & $AgentPath enable-auto-update
+      Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("enable-auto-update") -Description "Auto-update scheduling" -Fix "Run gain-agent enable-auto-update from an elevated PowerShell after resolving the message above."
     }
     Install-ProxyService $AgentPath
     Invoke-AutoWire $AgentPath
-    & $AgentPath doctor
+    Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("doctor") -Description "Final health check" -Fix "Run gain-agent doctor and follow its named repair command before relying on G.A.I.N."
   } else {
     Write-Host ""
     Write-Host "Installed. Connect it with:"
@@ -176,6 +185,9 @@ function Install-Binary([object]$Manifest) {
   Add-ToUserPath $installDir
   Write-Host "Installed G.A.I.N Agent at $agentPath"
   & $agentPath --version
+  if ($LASTEXITCODE -ne 0) {
+    throw "Installed G.A.I.N Agent binary could not start. Delete $agentPath, rerun the installer, and contact CyberWardion if the problem remains."
+  }
   Invoke-AgentSetup $agentPath
   return $true
 }
@@ -187,7 +199,7 @@ function Install-NpmFallback([object]$Manifest) {
 
   $version = $env:GAIN_AGENT_VERSION
   if (-not $version -and $Manifest -and $Manifest.version) { $version = $Manifest.version }
-  if (-not $version) { $version = "0.4.31" }
+  if (-not $version) { $version = "0.4.46" }
   $packageRef = $null
   if ($Manifest -and $Manifest.package) { $packageRef = [string]$Manifest.package }
   if (-not $packageRef) { $packageRef = "gain-agent-$version.tgz" }
