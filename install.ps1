@@ -199,7 +199,7 @@ function Install-NpmFallback([object]$Manifest) {
 
   $version = $env:GAIN_AGENT_VERSION
   if (-not $version -and $Manifest -and $Manifest.version) { $version = $Manifest.version }
-  if (-not $version) { $version = "0.4.47" }
+  if (-not $version) { $version = "0.4.48" }
   $packageRef = $null
   if ($Manifest -and $Manifest.package) { $packageRef = [string]$Manifest.package }
   if (-not $packageRef) { $packageRef = "gain-agent-$version.tgz" }
