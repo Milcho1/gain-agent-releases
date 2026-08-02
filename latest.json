@@ -1,35 +1,35 @@
 {
-  "version": "0.4.48",
-  "package": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.48/gain-agent-0.4.48.tgz",
-  "sha256": "81b346999d31a89118d3dc2afd3b6d909329bf99193db9d35b5326b2c2c73a9d",
-  "released_at": "2026-08-01T21:42:06.5496836Z",
+  "version": "0.4.52",
+  "package": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.52/gain-agent-0.4.52.tgz",
+  "sha256": "f41c9d2eea81236d3ae0b8d2cd2bf7b3ef45a13106c8cad725f3fa927a135ffb",
+  "released_at": "2026-08-02T11:20:15.5711088Z",
   "channel": "stable",
   "min_node": "18.0.0",
   "binaries": {
     "win-x64": {
-      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.48/gain-agent-0.4.48-win-x64.exe",
-      "size": 58000386,
-      "sha256": "06913a775005a17793aa1611e6ca40ae7db7ccd2e5acfe64eb47c29278383f21"
+      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.52/gain-agent-0.4.52-win-x64.exe",
+      "size": 59417827,
+      "sha256": "51ca75071e801d43d98935742f6423cf6de341b944f2aacf57787c87948abec3"
     },
     "macos-x64": {
-      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.48/gain-agent-0.4.48-macos-x64",
-      "size": 63106381,
-      "sha256": "1a7638d2a231305db4e6f834c6ec22f236e347c67481fef339695ed19b8d45c6"
+      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.52/gain-agent-0.4.52-macos-x64",
+      "size": 64523808,
+      "sha256": "b25ba30371d6ab1d05f8e99c5c3d0d1c6c9bd2075d98403cba5befaad1a00f85"
     },
     "macos-arm64": {
-      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.48/gain-agent-0.4.48-macos-arm64",
-      "size": 60715645,
-      "sha256": "c60a462758aca1991cf2a0b26b4b20e40e543675d220eca8e5faf8ee69401e96"
+      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.52/gain-agent-0.4.52-macos-arm64",
+      "size": 62133072,
+      "sha256": "91b65e778da59e69f90e67b77722ccadd5f712e868dfce6591041f088efd785c"
     },
     "linux-x64": {
-      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.48/gain-agent-0.4.48-linux-x64",
-      "size": 74768933,
-      "sha256": "596bcdf4bc7d404254dbdd10bcf8ed9b01984b883b5dcc20fef725c4b765930a"
+      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.52/gain-agent-0.4.52-linux-x64",
+      "size": 76186360,
+      "sha256": "46a87b9b89dfbc900f2b89e8921b2c47fbcae37b828cd1017d124c4c07268e77"
     },
     "linux-arm64": {
-      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.48/gain-agent-0.4.48-linux-arm64",
-      "size": 69452029,
-      "sha256": "565d390e079d6a7ba286395fb28368650af41cf2813fa00cde2d7cf3af01ac8b"
+      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.52/gain-agent-0.4.52-linux-arm64",
+      "size": 70869456,
+      "sha256": "0ae01bcbcc9e77b8ddcbb7033fec30f5ba15270b63335a516bdc66ef6aa84eac"
     }
   }
 }

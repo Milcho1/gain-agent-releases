@@ -184,7 +184,7 @@ install_binary() {
   key="$(platform_key)"
   manifest="$(latest_json)"
   version="${GAIN_AGENT_VERSION:-$(json_version "$manifest")}"
-  if [ -z "$version" ]; then version="0.4.48"; fi
+  if [ -z "$version" ]; then version="0.4.52"; fi
 
   binary_name="gain-agent-$version-$key"
   binary_url_value="$(json_binary_field "$manifest" "$key" "url")"
@@ -220,7 +220,7 @@ install_npm_fallback() {
   fi
   manifest="$(latest_json)"
   version="${GAIN_AGENT_VERSION:-$(json_version "$manifest")}"
-  if [ -z "$version" ]; then version="0.4.48"; fi
+  if [ -z "$version" ]; then version="0.4.52"; fi
   package_ref="$(json_package "$manifest")"
   if [ -z "$package_ref" ]; then package_ref="gain-agent-$version.tgz"; fi
   package_name="$(basename "$package_ref")"

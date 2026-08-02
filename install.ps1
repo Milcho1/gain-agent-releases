@@ -21,6 +21,22 @@ $SkipService = $NoService -or $env:GAIN_AGENT_NO_SERVICE -eq "1" -or $env:GAIN_A
 $SkipAutoWire = $env:GAIN_AGENT_SKIP_INTEGRATIONS -eq "1" -or $env:GAIN_AGENT_NO_AUTOWIRE -eq "1" -or $env:GAIN_AGENT_NO_AUTOWIRE -eq "true"
 $SkipUserPath = $env:GAIN_AGENT_SKIP_USER_PATH -eq "1"
 $ProxyFailPolicy = if ($env:GAIN_PROXY_FAIL_POLICY -eq "fail_closed") { "fail_closed" } else { "fail_open" }
+$EnableAutoUpdate = $env:GAIN_AGENT_AUTO_UPDATE -eq "true" -or $env:GAIN_AGENT_AUTO_UPDATE -eq "1"
+$GainConfigDir = if ($env:GAIN_CONFIG_DIR) { $env:GAIN_CONFIG_DIR } else { Join-Path $env:USERPROFILE ".gain" }
+$GainConfigPath = Join-Path $GainConfigDir "config.json"
+$ExistingConfigBackup = $null
+$ExistingEnrollment = $null
+if (Test-Path -LiteralPath $GainConfigPath) {
+  try {
+    $ExistingEnrollment = Get-Content -LiteralPath $GainConfigPath -Raw | ConvertFrom-Json
+    if ($ExistingEnrollment.org_api_key) {
+      $ExistingConfigBackup = Join-Path $env:TEMP "gain-agent-existing-config-$PID.json"
+      Copy-Item -LiteralPath $GainConfigPath -Destination $ExistingConfigBackup -Force
+    }
+  } catch {
+    Write-Host "Existing G.A.I.N configuration could not be read; continuing with a new setup."
+  }
+}
 
 function Resolve-GainUrl([string]$UrlOrPath) {
   if ($UrlOrPath -match "^https?://") { return $UrlOrPath }
@@ -60,6 +76,48 @@ function Add-ToUserPath([string]$Dir) {
   if (($env:Path -split ";") -notcontains $Dir) {
     $env:Path = "$Dir;$env:Path"
   }
+}
+
+function Stop-ExistingGainProcesses([string]$AgentPath) {
+  if (-not (Test-Path -LiteralPath $AgentPath)) { return }
+
+  # A running proxy, health worker, or desktop guard holds gain-agent.exe open on Windows.
+  # Do not call the old binary's uninstall command here: older agents can mutate
+  # config.json during cleanup. Clear only persistent loopback routes, then stop
+  # processes from this exact install location.
+  foreach ($name in @("ANTHROPIC_BASE_URL", "OPENAI_BASE_URL", "OPENAI_API_BASE", "COPILOT_PROVIDER_BASE_URL")) {
+    try { & reg delete "HKCU\Environment" /V $name /F 2>$null | Out-Null } catch {}
+    Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+  }
+
+  $targetPath = [System.IO.Path]::GetFullPath($AgentPath)
+  for ($attempt = 1; $attempt -le 20; $attempt++) {
+    $running = @(Get-Process -Name "gain-agent" -ErrorAction SilentlyContinue | Where-Object {
+      $_.Path -and ([System.IO.Path]::GetFullPath($_.Path) -ieq $targetPath)
+    })
+    if (-not $running.Count) { return }
+    foreach ($process in $running) {
+      try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch {}
+    }
+    Start-Sleep -Milliseconds 500
+  }
+
+  throw "G.A.I.N Agent is still running and Windows cannot replace it. Close any G.A.I.N Agent processes, then rerun this installer."
+}
+
+function Replace-AgentBinary([string]$TempPath, [string]$AgentPath) {
+  Stop-ExistingGainProcesses $AgentPath
+  $lastError = $null
+  for ($attempt = 1; $attempt -le 20; $attempt++) {
+    try {
+      Move-Item -LiteralPath $TempPath -Destination $AgentPath -Force
+      return
+    } catch {
+      $lastError = $_.Exception.Message
+      Start-Sleep -Milliseconds 500
+    }
+  }
+  throw "Windows could not replace the running G.A.I.N Agent binary. Fix: close any G.A.I.N Agent processes and rerun this installer. Last error: $lastError"
 }
 
 function Install-ProxyService([string]$AgentPath) {
@@ -125,6 +183,7 @@ function Invoke-AgentSetup([string]$AgentPath) {
   if ($OrgKey) {
     $setupArgs = @("setup", "--org-key", $OrgKey, "--mode", $Mode, "--label", $Label)
     $setupArgs += @("--proxy-fail-policy", $ProxyFailPolicy)
+    if ($EnableAutoUpdate) { $setupArgs += "--auto-update" } else { $setupArgs += "--disable-auto-update" }
     if ($DeploymentMode) { $setupArgs += @("--deployment-mode", $DeploymentMode) }
     if ($SupabaseUrl) { $setupArgs += @("--supabase-url", $SupabaseUrl) }
     if ($SupabaseKey) { $setupArgs += @("--supabase-key", $SupabaseKey) }
@@ -136,16 +195,36 @@ function Invoke-AgentSetup([string]$AgentPath) {
     if ($env:GAIN_AGENT_SKIP_HEALTH_SCHEDULE -ne "1") {
       Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("install-health-schedule") -Description "Health schedule installation" -Fix "Run gain-agent install-health-schedule from an elevated PowerShell, then rerun gain-agent doctor."
     }
-    if ($env:GAIN_AGENT_AUTO_UPDATE -ne "false" -and $env:GAIN_AGENT_AUTO_UPDATE -ne "0") {
+    if ($EnableAutoUpdate) {
       Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("enable-auto-update") -Description "Auto-update scheduling" -Fix "Run gain-agent enable-auto-update from an elevated PowerShell after resolving the message above."
+    } else {
+      & $AgentPath disable-auto-update | Out-Null
     }
     Install-ProxyService $AgentPath
     Invoke-AutoWire $AgentPath
     Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("doctor") -Description "Final health check" -Fix "Run gain-agent doctor and follow its named repair command before relying on G.A.I.N."
+  } elseif ($ExistingConfigBackup -and (Test-Path -LiteralPath $ExistingConfigBackup)) {
+    New-Item -ItemType Directory -Path $GainConfigDir -Force | Out-Null
+    Copy-Item -LiteralPath $ExistingConfigBackup -Destination $GainConfigPath -Force
+    $Preserved = Get-Content -LiteralPath $GainConfigPath -Raw | ConvertFrom-Json
+    $PreservedFailPolicy = if ($Preserved.proxy_fail_policy -eq "fail_closed") { "fail_closed" } else { "fail_open" }
+    if ($env:GAIN_AGENT_SKIP_HEALTH_SCHEDULE -ne "1") {
+      Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("install-health-schedule") -Description "Health schedule restoration" -Fix "Run gain-agent install-health-schedule from an elevated PowerShell, then rerun gain-agent doctor."
+    }
+    if ($Preserved.auto_update -eq $true) {
+      Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("enable-auto-update") -Description "Auto-update restoration" -Fix "Run gain-agent enable-auto-update after resolving the message above."
+    } else {
+      & $AgentPath disable-auto-update | Out-Null
+    }
+    if (-not $SkipService) {
+      try { Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("proxy", "--service", "install", "--proxy-fail-policy", $PreservedFailPolicy) -Description "Proxy service restoration" -Fix "Run gain-agent proxy --service install later if needed." } catch { Write-Host "Proxy service restoration warning: $($_.Exception.Message)" }
+    }
+    Write-Host "Updated G.A.I.N Agent and preserved the existing organization enrollment."
+    Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("doctor") -Description "Final health check" -Fix "Run gain-agent doctor and follow its named repair command before relying on G.A.I.N."
   } else {
     Write-Host ""
     Write-Host "Installed. Connect it with:"
-    Write-Host "  $env:GAIN_ORG_API_KEY=""<YOUR_ORG_KEY>""; irm $BaseUrl/install.ps1 | iex"
+    Write-Host ('  $env:GAIN_ORG_API_KEY="<YOUR_ORG_KEY>"; irm ' + $BaseUrl + '/install.ps1 | iex')
     Write-Host "  gain-agent setup --org-key <YOUR_ORG_KEY> --mode visibility_only --label ""$Label"" --department Engineering"
   }
 }
@@ -181,7 +260,7 @@ function Install-Binary([object]$Manifest) {
     Write-Host "Checksum verified."
   }
 
-  Move-Item -LiteralPath $tempPath -Destination $agentPath -Force
+  Replace-AgentBinary $tempPath $agentPath
   Add-ToUserPath $installDir
   Write-Host "Installed G.A.I.N Agent at $agentPath"
   & $agentPath --version
@@ -199,7 +278,7 @@ function Install-NpmFallback([object]$Manifest) {
 
   $version = $env:GAIN_AGENT_VERSION
   if (-not $version -and $Manifest -and $Manifest.version) { $version = $Manifest.version }
-  if (-not $version) { $version = "0.4.48" }
+  if (-not $version) { $version = "0.4.52" }
   $packageRef = $null
   if ($Manifest -and $Manifest.package) { $packageRef = [string]$Manifest.package }
   if (-not $packageRef) { $packageRef = "gain-agent-$version.tgz" }
