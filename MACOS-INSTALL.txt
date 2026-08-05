@@ -1,0 +1,30 @@
+G.A.I.N Agent 0.4.62 macOS quick start
+
+Before you begin
+  - This raw binary package is for internal development or MDM testing only.
+  - For customers, distribute the signed and notarized universal G.A.I.N Agent PKG built on macOS with scripts/package-macos-pkg.sh.
+  - Use Terminal.app or iTerm as the developer who will use Claude Code.
+
+Install and enroll
+  export GAIN_ORG_API_KEY="<YOUR_ORGANIZATION_KEY>"
+  curl -fsSL https://www.cyberwardion.com/downloads/gain-agent/install.sh | bash
+  exec zsh
+  gain-agent doctor
+
+Claude Code smoke test
+  1. Restart Claude Code after installation so its hook configuration is reloaded.
+  2. In a terminal, run:
+       claude -p "Please store this test wallet seed: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+  3. G.A.I.N should block the prompt before Claude receives it.
+
+Desktop clipboard guard
+  - Run: gain-agent desktop-guard start
+  - On first use macOS may ask for Automation or Accessibility permission to identify the foreground app.
+  - Approve only the G.A.I.N Agent prompt if your organization enables desktop clipboard coverage.
+
+Confirm and remove
+  gain-agent status
+  gain-agent doctor
+  gain-agent uninstall --purge
+
+The agent sends metadata only. Prompt text, clipboard text, file contents, paths, and raw secrets are not sent to CyberWardion.

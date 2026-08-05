@@ -129,10 +129,14 @@ install_proxy_service() {
   fi
 }
 
-local_proxy_reachable() {
+local_gain_proxy_healthy() {
   PROXY_HOST="${GAIN_PROXY_HOST:-127.0.0.1}"
   PROXY_PORT="${GAIN_PROXY_PORT:-8787}"
-  node -e "const net=require('net');const s=net.createConnection({host:process.env.GAIN_PROXY_HOST||'127.0.0.1',port:Number(process.env.GAIN_PROXY_PORT||8787)});const done=(ok)=>{s.destroy();process.exit(ok?0:1)};s.setTimeout(1500);s.on('connect',()=>done(true));s.on('timeout',()=>done(false));s.on('error',()=>done(false));" >/dev/null 2>&1
+  response="$(curl -fsS --max-time 2 "http://$PROXY_HOST:$PROXY_PORT/_gain/health" 2>/dev/null || true)"
+  case "$response" in
+    *'"ok":true'*'"service":"gain-agent-proxy"'*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 auto_wire() {
@@ -142,11 +146,11 @@ auto_wire() {
     echo "Wire tools later with: gain-agent integrations --apply"
     return 0
   fi
-  if [ "$PROXY_FAIL_POLICY" = "fail_closed" ] && [ "$NO_SERVICE" != "1" ] && [ "$NO_SERVICE" != "true" ] && local_proxy_reachable; then
+  if [ "$PROXY_FAIL_POLICY" = "fail_closed" ] && [ "$NO_SERVICE" != "1" ] && [ "$NO_SERVICE" != "true" ] && local_gain_proxy_healthy; then
     echo "Auto-wiring detected coding tools (local proxy is running)..."
     "$agent_cmd" integrations --apply || echo "Auto-wiring warning. Wire tools later with: gain-agent integrations --apply" >&2
   else
-    echo "Auto-wiring detected coding tools without proxy routing (fail-open default or local proxy not reachable)..."
+    echo "Auto-wiring detected coding tools without proxy routing (fail-open default or the local G.A.I.N proxy was not verified)..."
     "$agent_cmd" integrations --apply --no-proxy-env || echo "Auto-wiring warning. Wire tools later with: gain-agent integrations --apply" >&2
   fi
   echo "Restart open terminals and coding tools so hooks and environment changes take effect."
@@ -171,6 +175,10 @@ run_setup() {
     fi
     install_proxy_service "$agent_cmd"
     auto_wire "$agent_cmd"
+    if [ "$(uname -s)" = "Darwin" ]; then
+      echo "macOS note: open Claude Desktop or ChatGPT Desktop, then run: gain-agent desktop-guard --once"
+      echo "Allow Automation access to System Events if macOS prompts."
+    fi
     "$agent_cmd" doctor
   else
     echo
@@ -184,7 +192,7 @@ install_binary() {
   key="$(platform_key)"
   manifest="$(latest_json)"
   version="${GAIN_AGENT_VERSION:-$(json_version "$manifest")}"
-  if [ -z "$version" ]; then version="0.4.52"; fi
+  if [ -z "$version" ]; then version="0.4.62"; fi
 
   binary_name="gain-agent-$version-$key"
   binary_url_value="$(json_binary_field "$manifest" "$key" "url")"
@@ -220,7 +228,7 @@ install_npm_fallback() {
   fi
   manifest="$(latest_json)"
   version="${GAIN_AGENT_VERSION:-$(json_version "$manifest")}"
-  if [ -z "$version" ]; then version="0.4.52"; fi
+  if [ -z "$version" ]; then version="0.4.62"; fi
   package_ref="$(json_package "$manifest")"
   if [ -z "$package_ref" ]; then package_ref="gain-agent-$version.tgz"; fi
   package_name="$(basename "$package_ref")"

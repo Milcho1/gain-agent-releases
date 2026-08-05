@@ -135,15 +135,13 @@ function Install-ProxyService([string]$AgentPath) {
   }
 }
 
-function Test-LocalProxyReachable {
+function Test-GainProxyIdentity {
   try {
     $ProxyHost = if ($env:GAIN_PROXY_HOST) { $env:GAIN_PROXY_HOST } else { "127.0.0.1" }
     $ProxyPort = if ($env:GAIN_PROXY_PORT) { [int]$env:GAIN_PROXY_PORT } else { 8787 }
-    $client = New-Object System.Net.Sockets.TcpClient
-    $async = $client.BeginConnect($ProxyHost, $ProxyPort, $null, $null)
-    $connected = $async.AsyncWaitHandle.WaitOne(1500) -and $client.Connected
-    $client.Close()
-    return $connected
+    $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri "http://${ProxyHost}:$ProxyPort/_gain/health"
+    $payload = $response.Content | ConvertFrom-Json
+    return $response.StatusCode -eq 200 -and $payload.ok -eq $true -and $payload.service -eq "gain-agent-proxy"
   } catch {
     return $false
   }
@@ -162,13 +160,13 @@ function Invoke-AutoWire([string]$AgentPath) {
     Write-Host "Wire tools later with: gain-agent integrations --apply"
     return
   }
-  $proxyUp = $ProxyFailPolicy -eq "fail_closed" -and (-not $SkipService) -and (Test-LocalProxyReachable)
+  $proxyUp = $ProxyFailPolicy -eq "fail_closed" -and (-not $SkipService) -and (Test-GainProxyIdentity)
   try {
     if ($proxyUp) {
       Write-Host "Auto-wiring detected coding tools (local proxy is running)..."
       Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("integrations", "--apply") -Description "Coding-tool auto-wiring" -Fix "Run gain-agent integrations --apply after resolving the message above."
     } else {
-      Write-Host "Auto-wiring detected coding tools without proxy routing (fail-open default or local proxy not reachable)..."
+      Write-Host "Auto-wiring detected coding tools without proxy routing (fail-open default or the local G.A.I.N proxy was not verified)..."
       Invoke-AgentCommand -AgentPath $AgentPath -Arguments @("integrations", "--apply", "--no-proxy-env") -Description "Coding-tool auto-wiring" -Fix "Run gain-agent integrations --apply --no-proxy-env after resolving the message above."
       Write-Host "To deliberately enable fail-closed proxy routing later: set GAIN_PROXY_FAIL_POLICY=fail_closed, then run gain-agent proxy --service install and gain-agent integrations --apply."
     }
@@ -278,7 +276,7 @@ function Install-NpmFallback([object]$Manifest) {
 
   $version = $env:GAIN_AGENT_VERSION
   if (-not $version -and $Manifest -and $Manifest.version) { $version = $Manifest.version }
-  if (-not $version) { $version = "0.4.52" }
+  if (-not $version) { $version = "0.4.62" }
   $packageRef = $null
   if ($Manifest -and $Manifest.package) { $packageRef = [string]$Manifest.package }
   if (-not $packageRef) { $packageRef = "gain-agent-$version.tgz" }
