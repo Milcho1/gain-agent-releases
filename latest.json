@@ -1,25 +1,25 @@
 {
-  "version": "0.5.33",
-  "package": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.5.33/gain-agent-0.5.33.tgz",
-  "sha256": "8c0d2beb19e2982ed544db70ca358eb4fdfb8158c894bf9877c843e42ab2c3fb",
-  "released_at": "2026-08-19T11:20:14.6971361Z",
+  "version": "0.5.43",
+  "package": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.5.43/gain-agent-0.5.43.tgz",
+  "sha256": "21b324ed8c4defb6be94381cb9f081f0fbeed119dbae786a75071449d9846bdc",
+  "released_at": "2026-08-27T18:16:42.3374929Z",
   "channel": "stable",
   "min_node": "18.0.0",
   "binaries": {
     "win-x64": {
-      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.5.33/gain-agent-0.5.33-win-x64.exe",
-      "size": 60955923,
-      "sha256": "4cbaf10b635594beb5a4a868264ba041eb63a85040ff551615dd0735aa66a703"
+      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.5.43/gain-agent-0.5.43-win-x64.exe",
+      "size": 61024798,
+      "sha256": "03d01783ffed6afd82bf52a46a48c78d5f63900cbd1c43c55e621c7ca12c812d"
     },
     "linux-x64": {
-      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.5.33/gain-agent-0.5.33-linux-x64",
-      "size": 77723132,
-      "sha256": "4e1fbe1f42384cb4ae3e8636ad84ca98783c634042ef9dbe82b71f192fd73d41"
+      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.5.43/gain-agent-0.5.43-linux-x64",
+      "size": 77791944,
+      "sha256": "ab63161992457d0811414b79c7393a178f6f43b2824dacf17cab90437f4560b7"
     },
     "linux-arm64": {
-      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.5.33/gain-agent-0.5.33-linux-arm64",
-      "size": 72406228,
-      "sha256": "2139a98003865ffba7aed90ecc118ff3ee594609d7e728e42c438761ef8b2e45"
+      "url": "https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.5.43/gain-agent-0.5.43-linux-arm64",
+      "size": 72475040,
+      "sha256": "2c3f8ff55f1d6752062aa5a37e82fd80e55f1c00994242a68bc3086e4bbbb484"
     }
   }
 }
