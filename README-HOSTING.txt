@@ -1,4 +1,4 @@
-G.A.I.N Agent 0.4.62 hosted download files
+G.A.I.N Agent 0.5.44 hosted download files
 
 Upload these files to:
   https://www.cyberwardion.com/downloads/gain-agent/
@@ -10,20 +10,18 @@ Files:
   latest.json
   SHA256SUMS.txt
 
-GitHub Release assets for gain-agent-v0.4.62:
-  gain-agent-0.4.62.tgz
-  gain-agent-0.4.62-win-x64.exe
-  gain-agent-0.4.62-macos-x64
-  gain-agent-0.4.62-macos-arm64
-  gain-agent-0.4.62-linux-x64
-  gain-agent-0.4.62-linux-arm64
+GitHub Release assets for gain-agent-v0.5.44:
+  gain-agent-0.5.44.tgz
+  gain-agent-0.5.44-win-x64.exe
+  gain-agent-0.5.44-linux-x64
+  gain-agent-0.5.44-linux-arm64
 
 Dashboard install commands:
 
 Windows PowerShell:
   $env:GAIN_ORG_API_KEY="<ORG_KEY>"; irm https://www.cyberwardion.com/downloads/gain-agent/install.ps1 | iex
 
-macOS / Linux:
+Linux:
   curl -fsSL https://www.cyberwardion.com/downloads/gain-agent/install.sh | GAIN_ORG_API_KEY="<ORG_KEY>" bash
 
 Installer behavior:
@@ -34,11 +32,12 @@ Installer behavior:
   5. Connect to the org when GAIN_ORG_API_KEY is provided.
   6. Install health schedule, enable auto-update unless disabled, start hidden proxy service, auto-wire detected coding tools, and run doctor last.
 
-If no standalone binary exists for the platform, the installers fall back to the
+If no standalone Linux binary exists, the Linux installer falls back to the
 GitHub Release tarball:
-  npm install -g https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.4.62/gain-agent-0.4.62.tgz
+  npm install -g https://github.com/Milcho1/gain-agent-releases/releases/download/gain-agent-v0.5.44/gain-agent-0.5.44.tgz
 
-The fallback tarball is hosted at the package URL in latest.json.
+The fallback tarball is hosted at the package URL in latest.json. macOS is
+intentionally excluded until its signed and notarized PKG is published.
 
 The binary path does not require Node.js.
 

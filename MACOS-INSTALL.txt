@@ -1,15 +1,16 @@
-G.A.I.N Agent 0.4.62 macOS quick start
+G.A.I.N Agent 0.5.44 macOS quick start
 
 Before you begin
-  - This raw binary package is for internal development or MDM testing only.
-  - For customers, distribute the signed and notarized universal G.A.I.N Agent PKG built on macOS with scripts/package-macos-pkg.sh.
-  - Use Terminal.app or iTerm as the developer who will use Claude Code.
+  - macOS customer installation is not published yet.
+  - Do not use the public install.sh script on macOS. It deliberately exits until
+    a signed and notarized universal G.A.I.N Agent PKG is available.
+  - Internal VM testing uses the separately labelled prerelease ZIP, its README,
+    and its published SHA-256 checksum. It is not for customer distribution.
 
-Install and enroll
-  export GAIN_ORG_API_KEY="<YOUR_ORGANIZATION_KEY>"
-  curl -fsSL https://www.cyberwardion.com/downloads/gain-agent/install.sh | bash
-  exec zsh
-  gain-agent doctor
+Customer release requirement
+  - Build the signed and notarized universal PKG on macOS with:
+      scripts/package-macos-pkg.sh
+  - Publish only the resulting notarized PKG through the macOS release workflow.
 
 Claude Code smoke test
   1. Restart Claude Code after installation so its hook configuration is reloaded.
